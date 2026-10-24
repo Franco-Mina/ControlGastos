@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es" class="h-full bg-slate-100">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style type="text/tailwindcss">
+    .card { @apply rounded-2xl border border-slate-200 bg-white shadow-sm; }
+    .field {
+      @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition
+             focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100;
+    }
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition; }
+    .btn-primary { @apply bg-indigo-600 text-white shadow-sm hover:bg-indigo-500; }
+    .btn-secondary { @apply border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50; }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+</head>
+<body class="min-h-full font-sans text-slate-800 antialiased">
+  <div class="flex min-h-screen flex-col">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight text-slate-900">
+          <span class="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-9Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 12h.01" />
+            </svg>
+          </span>
+          {{ app_name }}
+        </a>
+        <nav class="flex items-center gap-1 text-sm font-medium">
+          <a href="/" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path == '/' else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Resumen</a>
+          <a href="/expenses" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path.startswith('/expenses') else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Gastos</a>
+          <a href="/expenses/new" class="btn btn-primary ml-1">Agregar gasto</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white">
+      <div class="mx-auto max-w-5xl px-4 py-4 text-xs text-slate-500">
+        {{ app_name }} · Gastos personales · Montos en {{ currency }}
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

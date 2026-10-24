@@ -1,0 +1,36 @@
+<form method="get" action="{{ request.url.path }}" class="flex flex-wrap items-end gap-2">
+  <label class="block">
+    <span class="mb-1 block text-xs font-medium text-slate-500">Mes</span>
+    <select name="month" class="field w-40">
+      {% if allow_all_months %}
+        <option value="0" {% if month == 0 %}selected{% endif %}>Todos los meses</option>
+      {% endif %}
+      {% for m in range(1, 13) %}
+        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m|month_name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="block">
+    <span class="mb-1 block text-xs font-medium text-slate-500">Año</span>
+    <select name="year" class="field w-28">
+      {% for y in years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  {% if categories is defined and categories %}
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-slate-500">Categoría</span>
+      <select name="category" class="field w-44">
+        <option value="">Todas las categorías</option>
+        {% for item in categories %}
+          <option value="{{ item.id }}" {% if category == item.id %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% endif %}
+
+  <button type="submit" class="btn btn-secondary">Aplicar</button>
+</form>

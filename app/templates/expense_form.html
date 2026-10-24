@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Agregar gasto · {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <a href="/expenses" class="text-sm text-slate-500 transition hover:text-slate-800">← Volver a gastos</a>
+
+  <div class="card mt-3 p-6">
+    <h1 class="text-xl font-semibold tracking-tight text-slate-900">Agregar un gasto</h1>
+    <p class="mt-1 text-sm text-slate-500">Registra una compra para mantener tus totales al día.</p>
+
+    {% if error %}
+      <div class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        {{ error }}
+      </div>
+    {% endif %}
+
+    <form method="post" action="/expenses" class="mt-6 space-y-5">
+      <div class="grid gap-5 sm:grid-cols-2">
+        <label class="block">
+          <span class="mb-1 block text-sm font-medium text-slate-700">Fecha</span>
+          <input type="date" name="spent_on" required
+                 value="{{ form.get('spent_on') or today }}" class="field">
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-sm font-medium text-slate-700">Monto ({{ currency }})</span>
+          <input type="text" name="amount" required inputmode="decimal" autocomplete="off"
+                 placeholder="0.00" value="{{ form.get('amount', '') }}" class="field">
+        </label>
+      </div>
+
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Descripción</span>
+        <input type="text" name="description" required maxlength="200" autocomplete="off"
+               placeholder="Café, supermercado, colectivo…"
+               value="{{ form.get('description', '') }}" class="field">
+      </label>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <label class="block">
+          <span class="mb-1 block text-sm font-medium text-slate-700">Categoría</span>
+          <select name="category_id" class="field">
+            <option value="">Sin categoría</option>
+            {% for item in categories %}
+              <option value="{{ item.id }}" {% if form.get('category_id') == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-sm font-medium text-slate-700">Método de pago</span>
+          <select name="payment_method" class="field">
+            <option value="">—</option>
+            {% for method in payment_methods %}
+              <option value="{{ method }}" {% if form.get('payment_method') == method %}selected{% endif %}>{{ method|payment_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Notas <span class="font-normal text-slate-400">(opcional)</span></span>
+        <textarea name="notes" rows="3" placeholder="Algo que valga la pena recordar…" class="field">{{ form.get('notes', '') }}</textarea>
+      </label>
+
+      <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
+        <a href="/expenses" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar gasto</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
