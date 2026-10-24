@@ -63,8 +63,11 @@ app/
   main.py            FastAPI app, lifespan (migrate + seed), static mount
   config.py          Settings from environment / .env
   db.py              Engine, SessionLocal, get_db dependency
-  models.py          Category and Expense ORM models
-  services.py        Month/year totals, category breakdown, trends
+  models.py          Category, Expense, Income and ExchangeRate ORM models
+  currencies.py      Currency registry and base-currency helpers
+  exchange.py        DolarAPI provider, daily rate cache and conversion
+  money.py           Per-currency display helpers for totals and charts
+  services.py        Per-currency totals, category breakdown, trends, balances
   templating.py      Jinja2 env, money/month filters
   seed.py            Default category seeding
   routers/
@@ -74,23 +77,56 @@ app/
     incomes.py       GET/POST /incomes, POST /incomes/{id}/delete
   parsing.py         Shared amount parsing for forms
   templates/         dashboard, balance, expense/income lists and forms
+    partials/        month picker, currency toggle, amount rendering macros
   static/css/        small style additions
 
 migrations/          Alembic environment + versions
-tests/               Smoke tests and amount parsing tests
+tests/               Smoke, currency and amount parsing tests
 data/                SQLite database (gitignored)
 ```
 
 ## Data model
 
 - **Category** — name (unique) and a display color.
-- **Expense** — date, description, amount (`NUMERIC(12, 2)`), optional category, payment
-  method and notes.
-- **Income** — date, description, amount, optional source and notes.
+- **Expense** — date, description, amount (`NUMERIC(12, 2)`), currency, optional category,
+  payment method and notes.
+- **Income** — date, description, amount, currency, optional source and notes.
+- **ExchangeRate** — a daily cache of one rate per currency (`currency`, `rate`, `rate_date`,
+  `source`).
 
-Amounts are stored as decimals, never floats. The display currency is set with `CURRENCY`
-in `.env` (`USD` by default). The balance view computes `income - expenses` for the
-selected month and for every month of the year.
+Amounts are stored as decimals, never floats. Every expense and income keeps the currency it
+was entered in.
+
+## Multi-currency
+
+`CURRENCY` in `.env` sets the **base currency** (ARS by default). Rates are stored as *units
+of the base currency per one unit of the foreign currency*: with ARS as the base, a USD rate
+of `1550` means `1 USD = 1,550 ARS`.
+
+- USD rates are fetched from
+  [dolarapi.com](https://dolarapi.com/v1/dolares/oficial) using the `venta` field.
+- The rate is cached in the `exchange_rates` table, one row per currency and date. A new
+  value is only fetched when there is no row for the current date.
+- If the provider fails, the most recent stored rate is used and marked as outdated in the
+  UI. If no rate exists at all, the app falls back to showing each currency separately
+  instead of dropping amounts.
+- The dashboard and balance pages have a **Mostrar montos en** toggle: `Ambas` shows each
+  currency on its own line and chart, while `ARS` or `USD` converts every amount. The choice
+  is saved in the `currency_view` cookie and can be overridden per request with `?view=ARS`,
+  `?view=USD` or `?view=both`.
+- Expense and income lists always show the original amounts, with the currency under each
+  total.
+
+To add a currency:
+
+1. Add a `Currency(code, symbol, name)` entry to `CURRENCIES` in `app/currencies.py`.
+2. If its rate can be fetched automatically, register a provider in `PROVIDERS` in
+   `app/exchange.py`. Otherwise insert rates manually in `exchange_rates`.
+
+No schema change is needed: new records simply store the new code.
+
+Cached rates are quoted against the configured base currency, so if you change `CURRENCY`
+after they exist, clear the `exchange_rates` table to have them fetched again.
 
 ## Notes
 
@@ -112,4 +148,5 @@ selected month and for every month of the year.
 - [ ] Budgets per category with progress warnings
 - [ ] CSV import/export
 - [ ] Recurring expenses and incomes
+- [ ] More currencies and automatic rate providers
 - [ ] Charts (e.g. Chart.js) for category and month comparisons

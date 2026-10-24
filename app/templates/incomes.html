@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/amounts.html" import totals_inline %}
 {% block title %}Ingresos · {{ app_name }}{% endblock %}
 
 {% block content %}
@@ -7,7 +8,7 @@
     <p class="text-sm font-medium text-indigo-600 dark:text-indigo-400">{{ label }}</p>
     <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Ingresos</h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-      {{ count }} {{ 'ingreso' if count == 1 else 'ingresos' }} · {{ total|money }} en total
+      {{ count }} {{ 'ingreso' if count == 1 else 'ingresos' }} · {{ totals_inline(totals) }} en total
     </p>
   </div>
   <div class="flex items-end gap-2">
@@ -51,7 +52,10 @@
                 {% endif %}
               </td>
               <td class="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">{{ income.source or '—' }}</td>
-              <td class="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums text-emerald-700 dark:text-emerald-400">{{ income.amount|money }}</td>
+              <td class="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums text-emerald-700 dark:text-emerald-400">
+                <div>{{ income.amount|money(income.currency) }}</div>
+                <div class="text-[11px] font-normal text-slate-400 dark:text-slate-500">{{ income.currency }}</div>
+              </td>
               <td class="px-5 py-3 text-right">
                 <form method="post"
                       action="/incomes/{{ income.id }}/delete?year={{ year }}&month={{ month }}"

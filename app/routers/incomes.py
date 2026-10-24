@@ -6,13 +6,15 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.currencies import BASE_CURRENCY, is_supported
 from app.db import get_db
 from app.models import Income
+from app.money import sorted_totals
 from app.parsing import parse_amount
-from app.services import month_bounds, year_options
+from app.services import currency_totals, month_bounds, year_options
 from app.templating import month_label, templates
 
 router = APIRouter(prefix="/incomes")
@@ -65,7 +67,7 @@ def list_incomes(
             .order_by(Income.received_on.desc(), Income.id.desc())
         ).all()
     )
-    total = db.scalar(select(func.coalesce(func.sum(Income.amount), 0)).where(*conditions))
+    total = sorted_totals(currency_totals(db, Income.currency, Income.amount, *conditions))
 
     label = month_label(year, month) if month else str(year)
 
@@ -77,7 +79,7 @@ def list_incomes(
             "month": month,
             "label": label,
             "incomes": incomes,
-            "total": total or 0,
+            "totals": total,
             "count": len(incomes),
             "years": year_options(year),
         },
@@ -92,6 +94,7 @@ def new_income(request: Request):
             "received_on": date.today().isoformat(),
             "description": "",
             "amount": "",
+            "currency": BASE_CURRENCY,
             "source": "",
             "notes": "",
         },
@@ -103,15 +106,18 @@ def create_income(
     request: Request,
     description: Annotated[str, Form()] = "",
     amount: Annotated[str, Form()] = "",
+    currency: Annotated[str, Form()] = "",
     received_on: Annotated[str, Form()] = "",
     source: Annotated[str, Form()] = "",
     notes: Annotated[str, Form()] = "",
     db: Session = Depends(get_db),
 ):
+    currency = (currency or BASE_CURRENCY).strip().upper()
     form = {
         "received_on": received_on,
         "description": description,
         "amount": amount,
+        "currency": currency,
         "source": source,
         "notes": notes,
     }
@@ -131,6 +137,8 @@ def create_income(
         error = "La fuente debe tener 80 caracteres como máximo."
     elif parsed_amount is None:
         error = "Ingresa un monto válido mayor que cero."
+    elif not is_supported(currency):
+        error = "Elige una moneda válida."
     else:
         try:
             parsed_date = date.fromisoformat(received_on.strip())
@@ -144,6 +152,7 @@ def create_income(
         received_on=parsed_date,
         description=description,
         amount=parsed_amount,
+        currency=currency,
         source=source or None,
         notes=notes.strip() or None,
     )

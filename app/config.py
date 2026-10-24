@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Mis gastos"
-    currency: str = "USD"
+    # Base currency: every other currency is quoted in units of this one.
+    currency: str = "ARS"
 
     # Absolute path by default so the app works regardless of the current directory.
     database_url: str = f"sqlite:///{(BASE_DIR / 'data' / 'expenses.db').as_posix()}"

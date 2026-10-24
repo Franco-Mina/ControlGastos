@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/amounts.html" import amount_lines %}
 {% block title %}Balance · {{ app_name }}{% endblock %}
 
 {% block content %}
@@ -16,25 +17,48 @@
   </div>
 </div>
 
+{% set month_income_lines = money.lines(month_summary.income) %}
+{% set month_expense_lines = money.lines(month_summary.expenses) %}
+{% set month_balance_lines = money.signed_lines(month_summary.income, month_summary.expenses) %}
+{% set month_net = money.net(month_summary.income, month_summary.expenses) %}
+{% set year_income_lines = money.lines(year_summary.income) %}
+{% set year_expense_lines = money.lines(year_summary.expenses) %}
+{% set year_balance_lines = money.signed_lines(year_summary.income, year_summary.expenses) %}
+{% set year_net = money.net(year_summary.income, year_summary.expenses) %}
+
+<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+  <span class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Mostrar montos en</span>
+  {% include "partials/currency_toggle.html" %}
+</div>
+
 <div class="grid gap-4 sm:grid-cols-3">
   <div class="card p-5">
     <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Ingresos del mes</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{{ month_summary.income|money }}</p>
+    <div class="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+      {{ amount_lines(month_income_lines, align='start') }}
+    </div>
     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ month_label }}</p>
   </div>
   <div class="card p-5">
     <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Gastos del mes</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{{ month_summary.expenses|money }}</p>
+    <div class="mt-2 text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+      {{ amount_lines(month_expense_lines, align='start') }}
+    </div>
     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ month_label }}</p>
   </div>
-  <div class="card p-5 {{ 'card-success' if month_summary.balance >= 0 else 'card-danger' }}">
+  <div class="card p-5 {{ 'card-success' if month_net >= 0 else 'card-danger' }}">
     <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Balance del mes</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-emerald-700 dark:text-emerald-400' if month_summary.balance >= 0 else 'text-rose-700 dark:text-rose-400' }}">{{ month_summary.balance|money_signed }}</p>
+    <div class="mt-2 text-2xl font-semibold tabular-nums">
+      {{ amount_lines(month_balance_lines, signed=true, align='start',
+                      positive_class='text-emerald-700 dark:text-emerald-400',
+                      negative_class='text-rose-700 dark:text-rose-400',
+                      zero_class='text-slate-700 dark:text-slate-300') }}
+    </div>
     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Ingresos menos gastos</p>
   </div>
 </div>
 
-{% if year_summary.income == 0 and year_summary.expenses == 0 %}
+{% if not year_summary.income and not year_summary.expenses %}
   <div class="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
     Todavía no hay movimientos en {{ year }}.
     <a href="/incomes/new" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Agregar un ingreso</a>
@@ -51,7 +75,12 @@
     </div>
     <div class="text-right">
       <p class="text-xs text-slate-500 dark:text-slate-400">Balance del año</p>
-      <p class="text-lg font-semibold tabular-nums {{ 'text-emerald-700 dark:text-emerald-400' if year_summary.balance >= 0 else 'text-rose-700 dark:text-rose-400' }}">{{ year_summary.balance|money_signed }}</p>
+      <div class="text-lg font-semibold tabular-nums">
+        {{ amount_lines(year_balance_lines, signed=true,
+                        positive_class='text-emerald-700 dark:text-emerald-400',
+                        negative_class='text-rose-700 dark:text-rose-400',
+                        zero_class='text-slate-700 dark:text-slate-300') }}
+      </div>
     </div>
   </div>
 
@@ -67,6 +96,9 @@
       </thead>
       <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
         {% for row in monthly %}
+          {% set income_lines = money.lines(row.income) %}
+          {% set expense_lines = money.lines(row.expenses) %}
+          {% set balance_lines = money.signed_lines(row.income, row.expenses) %}
           <tr class="{{ 'bg-indigo-50/70 dark:bg-indigo-950/40' if row.month == month else '' }} hover:bg-slate-50 dark:hover:bg-slate-800/50">
             <td class="whitespace-nowrap px-5 py-3">
               <a href="/balance?year={{ year }}&month={{ row.month }}"
@@ -74,18 +106,37 @@
                 {{ row.month|month_name|capitalize }}
               </a>
             </td>
-            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700 dark:text-slate-300">{{ row.income|money }}</td>
-            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700 dark:text-slate-300">{{ row.expenses|money }}</td>
-            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums font-medium {{ 'text-emerald-700 dark:text-emerald-400' if row.balance > 0 else ('text-rose-700 dark:text-rose-400' if row.balance < 0 else 'text-slate-500 dark:text-slate-400') }}">{{ row.balance|money_signed }}</td>
+            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+              {{ amount_lines(income_lines, css_class='text-slate-700 dark:text-slate-300') }}
+            </td>
+            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+              {{ amount_lines(expense_lines, css_class='text-slate-700 dark:text-slate-300') }}
+            </td>
+            <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+              {{ amount_lines(balance_lines, signed=true,
+                              css_class='font-medium',
+                              positive_class='text-emerald-700 dark:text-emerald-400',
+                              negative_class='text-rose-700 dark:text-rose-400',
+                              zero_class='text-slate-500 dark:text-slate-400') }}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
       <tfoot class="border-t border-slate-200 bg-slate-50 font-semibold dark:border-slate-800 dark:bg-slate-800/60">
         <tr>
           <td class="px-5 py-3 text-slate-900 dark:text-slate-100">Total {{ year }}</td>
-          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900 dark:text-slate-100">{{ year_summary.income|money }}</td>
-          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900 dark:text-slate-100">{{ year_summary.expenses|money }}</td>
-          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums {{ 'text-emerald-700 dark:text-emerald-400' if year_summary.balance > 0 else ('text-rose-700 dark:text-rose-400' if year_summary.balance < 0 else 'text-slate-900 dark:text-slate-100') }}">{{ year_summary.balance|money_signed }}</td>
+          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+            {{ amount_lines(year_income_lines, css_class='text-slate-900 dark:text-slate-100') }}
+          </td>
+          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+            {{ amount_lines(year_expense_lines, css_class='text-slate-900 dark:text-slate-100') }}
+          </td>
+          <td class="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+            {{ amount_lines(year_balance_lines, signed=true,
+                            positive_class='text-emerald-700 dark:text-emerald-400',
+                            negative_class='text-rose-700 dark:text-rose-400',
+                            zero_class='text-slate-900 dark:text-slate-100') }}
+          </td>
         </tr>
       </tfoot>
     </table>

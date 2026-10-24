@@ -39,6 +39,7 @@ class Expense(Base):
     spent_on: Mapped[date] = mapped_column(Date, index=True)
     description: Mapped[str] = mapped_column(String(200))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="ARS", server_default="ARS")
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"), index=True
     )
@@ -61,6 +62,7 @@ class Income(Base):
     received_on: Mapped[date] = mapped_column(Date, index=True)
     description: Mapped[str] = mapped_column(String(200))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="ARS", server_default="ARS")
     source: Mapped[str | None] = mapped_column(String(80))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -69,3 +71,27 @@ class Income(Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debugging helper
         return f"Income(id={self.id!r}, received_on={self.received_on!r}, amount={self.amount!r})"
+
+
+class ExchangeRate(Base):
+    """A daily cache of exchange rates, quoted in the base currency."""
+
+    __tablename__ = "exchange_rates"
+    __table_args__ = (
+        UniqueConstraint("currency", "rate_date", name="uq_exchange_rates_currency_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    currency: Mapped[str] = mapped_column(String(3), index=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(18, 6))
+    rate_date: Mapped[date] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging helper
+        return (
+            f"ExchangeRate(currency={self.currency!r}, rate={self.rate!r}, "
+            f"rate_date={self.rate_date!r})"
+        )

@@ -1,20 +1,21 @@
 """Expense listing and creation."""
 
 from datetime import date
-from decimal import Decimal
 from typing import Annotated
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.constants import PAYMENT_METHODS
+from app.currencies import BASE_CURRENCY, is_supported
 from app.db import get_db
 from app.models import Category, Expense
+from app.money import sorted_totals
 from app.parsing import parse_amount
-from app.services import month_bounds, year_options
+from app.services import currency_totals, month_bounds, year_options
 from app.templating import month_label, templates
 
 router = APIRouter(prefix="/expenses")
@@ -78,7 +79,7 @@ def list_expenses(
             .order_by(Expense.spent_on.desc(), Expense.id.desc())
         ).all()
     )
-    total = db.scalar(select(func.coalesce(func.sum(Expense.amount), 0)).where(*conditions))
+    total = sorted_totals(currency_totals(db, Expense.currency, Expense.amount, *conditions))
 
     if month:
         label = month_label(year, month)
@@ -94,7 +95,7 @@ def list_expenses(
             "category": category,
             "label": label,
             "expenses": expenses,
-            "total": total or Decimal("0"),
+            "totals": total,
             "count": len(expenses),
             "categories": _categories(db),
             "years": year_options(year),
@@ -112,6 +113,7 @@ def new_expense(request: Request, db: Session = Depends(get_db)):
             "spent_on": date.today().isoformat(),
             "description": "",
             "amount": "",
+            "currency": BASE_CURRENCY,
             "category_id": "",
             "payment_method": "",
             "notes": "",
@@ -124,16 +126,19 @@ def create_expense(
     request: Request,
     description: Annotated[str, Form()] = "",
     amount: Annotated[str, Form()] = "",
+    currency: Annotated[str, Form()] = "",
     spent_on: Annotated[str, Form()] = "",
     category_id: Annotated[str, Form()] = "",
     payment_method: Annotated[str, Form()] = "",
     notes: Annotated[str, Form()] = "",
     db: Session = Depends(get_db),
 ):
+    currency = (currency or BASE_CURRENCY).strip().upper()
     form = {
         "spent_on": spent_on,
         "description": description,
         "amount": amount,
+        "currency": currency,
         "category_id": category_id,
         "payment_method": payment_method,
         "notes": notes,
@@ -170,6 +175,9 @@ def create_expense(
     if error is None and payment_method and payment_method not in PAYMENT_METHODS:
         error = "Elige un método de pago válido."
 
+    if error is None and not is_supported(currency):
+        error = "Elige una moneda válida."
+
     if error is not None or parsed_amount is None or parsed_date is None:
         return _render_form(request, db, form=form, error=error, status_code=400)
 
@@ -177,6 +185,7 @@ def create_expense(
         spent_on=parsed_date,
         description=description,
         amount=parsed_amount,
+        currency=currency,
         category_id=parsed_category_id,
         payment_method=payment_method or None,
         notes=notes.strip() or None,

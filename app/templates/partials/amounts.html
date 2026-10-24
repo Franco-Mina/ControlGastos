@@ -1,0 +1,24 @@
+{# Renders one amount per currency. In "both" mode the values stack. #}
+{% macro amount_lines(lines, signed=false, align='end', css_class='', positive_class='', negative_class='', zero_class='') -%}
+<span class="inline-flex flex-col {{ 'items-end' if align == 'end' else 'items-start' }} leading-tight {{ css_class }}">
+  {%- for line in lines %}
+    {%- if signed %}
+      {%- set tone = positive_class if line.value > 0 else (negative_class if line.value < 0 else zero_class) %}
+      <span class="{{ tone }}">{{ (line.value|money_signed(line.currency)) if signed else (line.value|money(line.currency)) }}</span>
+    {%- else %}
+      <span>{{ line.value|money(line.currency) }}</span>
+    {%- endif %}
+  {%- endfor %}
+</span>
+{%- endmacro %}
+
+{# Inline "ARS + USD" total, used in listing subtitles. #}
+{% macro totals_inline(totals) -%}
+{%- if totals -%}
+{%- for code, value in totals -%}
+{% if not loop.first %} + {% endif %}{{ value|money(code) }}
+{%- endfor -%}
+{%- else -%}
+{{ 0|money(base_currency) }}
+{%- endif -%}
+{%- endmacro %}
