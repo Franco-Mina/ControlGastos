@@ -41,8 +41,11 @@ startup, and a set of default categories is seeded.
 # Run with auto-reload (reads HOST / PORT / DEBUG from .env)
 python -m app.main
 
-# Tests
+# Tests (also measures coverage; fails below 80%)
 pytest
+
+# Coverage report from the last run
+coverage report -m
 
 # Lint
 ruff check .
@@ -55,6 +58,10 @@ alembic revision --autogenerate -m "add something"
 ```
 
 For auto-reload while developing, set `DEBUG=true` in `.env`.
+
+The test command measures Python coverage and fails if global coverage drops below
+**80%**. The threshold and source package live under `[tool.coverage.*]` in
+`pyproject.toml`; templates and migrations are not counted as Python statements.
 
 ## Project layout
 

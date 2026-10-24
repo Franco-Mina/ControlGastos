@@ -21,6 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",
+    "pytest-cov>=5.0",
     "ruff>=0.6",
 ]
 
@@ -32,7 +33,16 @@ app = ["templates/**/*", "static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --cov=app --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# Every `pytest` run fails if global statement coverage drops below this value.
+fail_under = 80
+show_missing = true
+skip_covered = false
 
 [tool.ruff]
 line-length = 100
