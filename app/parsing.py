@@ -6,7 +6,7 @@ MAX_AMOUNT = Decimal("9999999999.99")
 
 
 def parse_amount(raw: str) -> Decimal | None:
-    """Parse user input like `1.234,56` or `$12.50` into a Decimal."""
+    """Parse user input like `1,234.56`, `1.234,56` or `$12.50` into a Decimal."""
     cleaned = (
         raw.strip()
         .replace(" ", "")
@@ -24,7 +24,17 @@ def parse_amount(raw: str) -> Decimal | None:
         else:
             cleaned = cleaned.replace(",", "")
     elif "," in cleaned:
-        cleaned = cleaned.replace(",", ".")
+        # Commas can be thousands ("1,234") or a decimal comma ("12,50").
+        groups = cleaned.split(",")
+        thousands = (
+            len(groups) > 1
+            and 0 < len(groups[0]) <= 3
+            and all(len(group) == 3 for group in groups[1:])
+        )
+        cleaned = "".join(groups) if thousands else cleaned.replace(",", ".")
+    elif cleaned.count(".") > 1:
+        # Several dots cannot describe decimals: treat them as thousands.
+        cleaned = cleaned.replace(".", "")
 
     try:
         value = Decimal(cleaned).quantize(Decimal("0.01"))

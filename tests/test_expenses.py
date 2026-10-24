@@ -1,6 +1,7 @@
 """Smoke tests for the expense tracker's main flows."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
@@ -52,6 +53,22 @@ def test_create_expense_shows_up_on_dashboard(client, session_factory) -> None:
 
     dashboard = client.get("/")
     assert "Coffee" in dashboard.text
+
+
+def test_expense_accepts_thousand_separators(client, session_factory) -> None:
+    response = client.post(
+        "/expenses",
+        data={
+            "spent_on": date.today().isoformat(),
+            "description": "Heladera",
+            "amount": "1,234.50",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with session_factory() as session:
+        assert session.scalar(select(Expense.amount)) == Decimal("1234.50")
 
 
 def test_delete_expense(client, session_factory) -> None:
@@ -119,6 +136,10 @@ def test_missing_description_is_rejected(client) -> None:
         ("12.50", "12.50"),
         ("$1,234.56", "1234.56"),
         ("1.234,56", "1234.56"),
+        ("1,234", "1234.00"),
+        ("1,234,567", "1234567.00"),
+        ("12,50", "12.50"),
+        ("1.234.567", "1234567.00"),
         ("0", None),
         ("-5", None),
         ("abc", None),
