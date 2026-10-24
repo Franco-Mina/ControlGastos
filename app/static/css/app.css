@@ -1,5 +1,17 @@
 /* Small additions on top of Tailwind utilities. */
 
+html {
+  color-scheme: light;
+  background-color: #f1f5f9; /* slate-100 */
+}
+
+/* Tailwind's `dark:` variants never match the root element itself, so the
+   page background is set here instead of with `dark:bg-slate-950`. */
+html.dark {
+  color-scheme: dark;
+  background-color: #020617; /* slate-950 */
+}
+
 .trend-bar {
   min-height: 3px;
 }
@@ -12,6 +24,10 @@ select {
   background-repeat: no-repeat;
   background-size: 1.1rem;
   padding-right: 2.25rem;
+}
+
+html.dark select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
 }
 
 /* Keep table numbers aligned. */

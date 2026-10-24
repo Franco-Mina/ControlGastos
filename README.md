@@ -94,6 +94,8 @@ selected month and for every month of the year.
 
 ## Notes
 
+- The UI defaults to a dark theme. Use the sun/moon button in the header to switch to the
+  light theme; the choice is saved in the browser (`localStorage`).
 - The UI is in Spanish (`lang="es"`), including month names, dates and validation
   messages. Code, comments, identifiers, database columns and stored payment-method
   values remain in English. Category names are seeded in Spanish; migration `0002`

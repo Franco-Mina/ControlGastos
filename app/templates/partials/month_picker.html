@@ -1,6 +1,6 @@
 <form method="get" action="{{ request.url.path }}" class="flex flex-wrap items-end gap-2">
   <label class="block">
-    <span class="mb-1 block text-xs font-medium text-slate-500">Mes</span>
+    <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Mes</span>
     <select name="month" class="field w-40">
       {% if allow_all_months %}
         <option value="0" {% if month == 0 %}selected{% endif %}>Todos los meses</option>
@@ -12,7 +12,7 @@
   </label>
 
   <label class="block">
-    <span class="mb-1 block text-xs font-medium text-slate-500">Año</span>
+    <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Año</span>
     <select name="year" class="field w-28">
       {% for y in years %}
         <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
@@ -22,7 +22,7 @@
 
   {% if categories is defined and categories %}
     <label class="block">
-      <span class="mb-1 block text-xs font-medium text-slate-500">Categoría</span>
+      <span class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Categoría</span>
       <select name="category" class="field w-44">
         <option value="">Todas las categorías</option>
         {% for item in categories %}

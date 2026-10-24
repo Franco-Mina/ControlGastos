@@ -4,9 +4,9 @@
 {% block content %}
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
   <div>
-    <p class="text-sm font-medium text-indigo-600">{{ label }}</p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Ingresos</h1>
-    <p class="mt-1 text-sm text-slate-500">
+    <p class="text-sm font-medium text-indigo-600 dark:text-indigo-400">{{ label }}</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Ingresos</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
       {{ count }} {{ 'ingreso' if count == 1 else 'ingresos' }} · {{ total|money }} en total
     </p>
   </div>
@@ -18,11 +18,11 @@
 </div>
 
 {% if request.query_params.get('created') %}
-  <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+  <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
     Ingreso guardado.
   </div>
 {% elif request.query_params.get('deleted') %}
-  <div class="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+  <div class="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
     Ingreso eliminado.
   </div>
 {% endif %}
@@ -31,7 +31,7 @@
   {% if incomes %}
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+        <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
           <tr>
             <th class="px-5 py-3 font-medium">Fecha</th>
             <th class="px-5 py-3 font-medium">Descripción</th>
@@ -40,23 +40,23 @@
             <th class="px-5 py-3"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
           {% for income in incomes %}
-            <tr class="hover:bg-slate-50">
-              <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ income.received_on|date_dmy }}</td>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+              <td class="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">{{ income.received_on|date_dmy }}</td>
               <td class="px-5 py-3">
-                <div class="font-medium text-slate-900">{{ income.description }}</div>
+                <div class="font-medium text-slate-900 dark:text-slate-100">{{ income.description }}</div>
                 {% if income.notes %}
-                  <div class="max-w-xs truncate text-xs text-slate-500" title="{{ income.notes }}">{{ income.notes }}</div>
+                  <div class="max-w-xs truncate text-xs text-slate-500 dark:text-slate-400" title="{{ income.notes }}">{{ income.notes }}</div>
                 {% endif %}
               </td>
-              <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ income.source or '—' }}</td>
-              <td class="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums text-emerald-700">{{ income.amount|money }}</td>
+              <td class="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">{{ income.source or '—' }}</td>
+              <td class="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums text-emerald-700 dark:text-emerald-400">{{ income.amount|money }}</td>
               <td class="px-5 py-3 text-right">
                 <form method="post"
                       action="/incomes/{{ income.id }}/delete?year={{ year }}&month={{ month }}"
                       onsubmit="return confirm('¿Eliminar este ingreso?')">
-                  <button type="submit" class="rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-rose-50 hover:text-rose-600">
+                  <button type="submit" class="rounded-lg px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400">
                     Eliminar
                   </button>
                 </form>
@@ -68,7 +68,7 @@
     </div>
   {% else %}
     <div class="px-6 py-16 text-center">
-      <p class="text-sm text-slate-500">Todavía no hay ingresos registrados en este período.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400">Todavía no hay ingresos registrados en este período.</p>
       <a href="/incomes/new" class="btn btn-primary mt-4">Agregar un ingreso</a>
     </div>
   {% endif %}
