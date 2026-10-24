@@ -1,13 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Agregar ingreso · {{ app_name }}{% endblock %}
+{% block title %}{{ 'Editar ingreso' if income else 'Agregar ingreso' }} · {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-2xl">
-  <a href="/incomes" class="text-sm text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100">← Volver a ingresos</a>
+  <a href="{{ cancel_url }}" class="text-sm text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100">← Volver a ingresos</a>
 
   <div class="card mt-3 p-6">
-    <h1 class="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Agregar un ingreso</h1>
-    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Registra un ingreso para calcular tu balance.</p>
+    {% if income %}
+      <h1 class="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Editar ingreso</h1>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Corregí los datos y guardá los cambios.</p>
+    {% else %}
+      <h1 class="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Agregar un ingreso</h1>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Registra un ingreso para calcular tu balance.</p>
+    {% endif %}
 
     {% if error %}
       <div class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
@@ -15,7 +20,7 @@
       </div>
     {% endif %}
 
-    <form method="post" action="/incomes" class="mt-6 space-y-5">
+    <form id="entry-form" method="post" action="{{ form_action }}" class="mt-6 space-y-5">
       <div class="grid gap-5 sm:grid-cols-3">
         <label class="block">
           <span class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Fecha</span>
@@ -59,10 +64,19 @@
       </label>
 
       <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
-        <a href="/incomes" class="btn btn-secondary">Cancelar</a>
-        <button type="submit" class="btn btn-primary">Guardar ingreso</button>
+        <a href="{{ cancel_url }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Guardar cambios' if income else 'Guardar ingreso' }}</button>
       </div>
     </form>
   </div>
 </div>
+
+{% if duplicates %}
+  {% set form_id = "entry-form" %}
+  {% include "partials/duplicate_modal.html" %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/modal.js') }}" defer></script>
 {% endblock %}

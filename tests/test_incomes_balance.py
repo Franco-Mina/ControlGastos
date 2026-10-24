@@ -1,6 +1,7 @@
 """Tests for income tracking and the balance view."""
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 
@@ -128,3 +129,101 @@ def test_money_signed_formatting() -> None:
     assert format_money_signed(-150).startswith("-")
     assert format_money_signed(-150).endswith("150.00")
     assert not format_money_signed(0).startswith("+")
+
+
+def test_edit_income_updates_fields(client, session_factory) -> None:
+    client.post(
+        "/incomes",
+        data={"received_on": "2026-03-09", "description": "Freelance", "amount": "800"},
+    )
+    with session_factory() as session:
+        income = session.scalar(select(Income))
+
+    page = client.get(f"/incomes/{income.id}/edit?year=2026&month=3")
+
+    assert page.status_code == 200
+    assert "Editar ingreso" in page.text
+    assert 'value="Freelance"' in page.text
+    assert 'value="800.00"' in page.text
+    assert 'href="/incomes?year=2026&amp;month=3"' in page.text
+
+    response = client.post(
+        f"/incomes/{income.id}",
+        data={
+            "received_on": "2026-04-10",
+            "description": "Freelance project",
+            "amount": "950.75",
+            "currency": "USD",
+            "source": "Client",
+            "notes": "Paid in two parts",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/incomes?year=2026&month=4&updated=1"
+
+    listing = client.get(response.headers["location"])
+    assert "Ingreso actualizado." in listing.text
+    assert "Freelance project" in listing.text
+
+    with session_factory() as session:
+        updated = session.get(Income, income.id)
+        assert updated.description == "Freelance project"
+        assert updated.amount == Decimal("950.75")
+        assert updated.currency == "USD"
+        assert updated.received_on == date(2026, 4, 10)
+        assert updated.source == "Client"
+        assert updated.notes == "Paid in two parts"
+
+
+def test_income_list_links_to_the_edit_form(client, session_factory) -> None:
+    client.post(
+        "/incomes",
+        data={"received_on": date.today().isoformat(), "description": "Sale", "amount": "100"},
+    )
+    with session_factory() as session:
+        income_id = session.scalar(select(Income.id))
+
+    listing = client.get("/incomes")
+
+    assert f"/incomes/{income_id}/edit" in listing.text
+
+
+def test_edit_unknown_income_returns_404(client) -> None:
+    assert client.get("/incomes/999/edit").status_code == 404
+    assert (
+        client.post(
+            "/incomes/999",
+            data={"received_on": "2026-05-01", "description": "Ghost", "amount": "10"},
+        ).status_code
+        == 404
+    )
+
+
+def test_duplicate_income_requires_confirmation(client, session_factory) -> None:
+    entry = {
+        "received_on": "2026-06-20",
+        "description": "Salary",
+        "amount": "1500",
+        "currency": "ARS",
+    }
+    client.post("/incomes", data=entry)
+
+    response = client.post("/incomes", data=entry, follow_redirects=False)
+
+    assert response.status_code == 200
+    assert "¿Es un ingreso duplicado?" in response.text
+    assert "Salary" in response.text
+    assert 'name="confirm_duplicate"' in response.text
+
+    with session_factory() as session:
+        assert len(list(session.scalars(select(Income)).all())) == 1
+
+    confirmed = client.post(
+        "/incomes", data={**entry, "confirm_duplicate": "1"}, follow_redirects=False
+    )
+
+    assert confirmed.status_code == 303
+    with session_factory() as session:
+        assert len(list(session.scalars(select(Income)).all())) == 2

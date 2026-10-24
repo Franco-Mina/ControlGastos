@@ -1,20 +1,21 @@
-"""Expense listing and creation."""
+"""Expense listing, creation and editing."""
 
 from datetime import date
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.constants import PAYMENT_METHODS
-from app.currencies import BASE_CURRENCY, is_supported
+from app.currencies import BASE_CURRENCY
 from app.db import get_db
+from app.duplicates import duplicate_expenses
+from app.entries import validate_expense
 from app.models import Category, Expense
 from app.money import sorted_totals
-from app.parsing import parse_amount
 from app.services import currency_totals, month_bounds, year_options
 from app.templating import month_label, templates
 
@@ -32,6 +33,70 @@ def _categories(db: Session) -> list[Category]:
     return list(db.scalars(select(Category).order_by(Category.name)).all())
 
 
+def _list_params(
+    expense: Expense, year: int | None, month: int | None, category: int | None
+) -> dict[str, int]:
+    """Filters to restore after editing, falling back to the expense's own month."""
+    params = {
+        "year": year if year is not None else expense.spent_on.year,
+        "month": month if month is not None else expense.spent_on.month,
+    }
+    if category is not None:
+        params["category"] = category
+    return params
+
+
+def _list_url(params: dict[str, int], **extra: int) -> str:
+    query = urlencode({**params, **extra})
+    return f"/expenses?{query}" if query else "/expenses"
+
+
+def _form_values(expense: Expense) -> dict[str, str]:
+    return {
+        "spent_on": expense.spent_on.isoformat(),
+        "description": expense.description,
+        "amount": f"{expense.amount:.2f}",
+        "currency": expense.currency,
+        "category_id": str(expense.category_id) if expense.category_id else "",
+        "payment_method": expense.payment_method or "",
+        "notes": expense.notes or "",
+    }
+
+
+def _read_form(
+    *,
+    description: str,
+    amount: str,
+    currency: str,
+    spent_on: str,
+    category_id: str,
+    payment_method: str,
+    notes: str,
+) -> dict[str, str]:
+    return {
+        "spent_on": spent_on,
+        "description": description,
+        "amount": amount,
+        "currency": (currency or BASE_CURRENCY).strip().upper(),
+        "category_id": category_id,
+        "payment_method": payment_method,
+        "notes": notes,
+    }
+
+
+def _duplicate_cards(expenses: list[Expense]) -> list[dict[str, object]]:
+    return [
+        {
+            "description": expense.description,
+            "date": expense.spent_on,
+            "amount": expense.amount,
+            "currency": expense.currency,
+            "detail": expense.category.name if expense.category else None,
+        }
+        for expense in expenses
+    ]
+
+
 def _render_form(
     request: Request,
     db: Session,
@@ -39,7 +104,12 @@ def _render_form(
     form: dict[str, str],
     error: str | None = None,
     status_code: int = 200,
+    expense: Expense | None = None,
+    duplicates: list[dict[str, object]] | None = None,
+    cancel_url: str = "/expenses",
 ):
+    form_action = f"/expenses/{expense.id}" if expense is not None else "/expenses"
+
     return templates.TemplateResponse(
         request=request,
         name="expense_form.html",
@@ -49,6 +119,11 @@ def _render_form(
             "form": form,
             "error": error,
             "today": date.today().isoformat(),
+            "expense": expense,
+            "duplicates": duplicates,
+            "entry_noun": "gasto",
+            "form_action": form_action,
+            "cancel_url": cancel_url,
         },
         status_code=status_code,
     )
@@ -121,6 +196,28 @@ def new_expense(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/{expense_id}/edit")
+def edit_expense(
+    request: Request,
+    expense_id: int,
+    year: int | None = None,
+    month: int | None = None,
+    category: int | None = None,
+    db: Session = Depends(get_db),
+):
+    expense = db.get(Expense, expense_id)
+    if expense is None:
+        raise HTTPException(status_code=404)
+
+    return _render_form(
+        request,
+        db,
+        form=_form_values(expense),
+        expense=expense,
+        cancel_url=_list_url(_list_params(expense, year, month, category)),
+    )
+
+
 @router.post("")
 def create_expense(
     request: Request,
@@ -131,70 +228,89 @@ def create_expense(
     category_id: Annotated[str, Form()] = "",
     payment_method: Annotated[str, Form()] = "",
     notes: Annotated[str, Form()] = "",
+    confirm_duplicate: Annotated[str, Form()] = "",
     db: Session = Depends(get_db),
 ):
-    currency = (currency or BASE_CURRENCY).strip().upper()
-    form = {
-        "spent_on": spent_on,
-        "description": description,
-        "amount": amount,
-        "currency": currency,
-        "category_id": category_id,
-        "payment_method": payment_method,
-        "notes": notes,
-    }
-
-    description = description.strip()
-    parsed_amount = parse_amount(amount)
-
-    error: str | None = None
-    parsed_date: date | None = None
-    parsed_category_id: int | None = None
-
-    if not description:
-        error = "Agrega una descripción breve."
-    elif len(description) > 200:
-        error = "La descripción debe tener 200 caracteres como máximo."
-    elif parsed_amount is None:
-        error = "Ingresa un monto válido mayor que cero."
-    else:
-        try:
-            parsed_date = date.fromisoformat(spent_on.strip())
-        except ValueError:
-            error = "Ingresa una fecha válida."
-
-    if error is None and category_id:
-        try:
-            parsed_category_id = int(category_id)
-        except ValueError:
-            error = "Elige una categoría válida."
-        else:
-            if db.get(Category, parsed_category_id) is None:
-                error = "Elige una categoría válida."
-
-    if error is None and payment_method and payment_method not in PAYMENT_METHODS:
-        error = "Elige un método de pago válido."
-
-    if error is None and not is_supported(currency):
-        error = "Elige una moneda válida."
-
-    if error is not None or parsed_amount is None or parsed_date is None:
+    form = _read_form(
+        description=description,
+        amount=amount,
+        currency=currency,
+        spent_on=spent_on,
+        category_id=category_id,
+        payment_method=payment_method,
+        notes=notes,
+    )
+    error, values = validate_expense(db, form)
+    if values is None:
         return _render_form(request, db, form=form, error=error, status_code=400)
 
-    expense = Expense(
-        spent_on=parsed_date,
-        description=description,
-        amount=parsed_amount,
-        currency=currency,
-        category_id=parsed_category_id,
-        payment_method=payment_method or None,
-        notes=notes.strip() or None,
+    duplicates = duplicate_expenses(
+        db,
+        spent_on=values.spent_on,
+        amount=values.amount,
+        currency=values.currency,
     )
+    if duplicates and not confirm_duplicate:
+        return _render_form(
+            request,
+            db,
+            form=form,
+            duplicates=_duplicate_cards(duplicates),
+        )
+
+    expense = Expense()
+    values.apply(expense)
     db.add(expense)
     db.commit()
 
-    query = urlencode({"year": parsed_date.year, "month": parsed_date.month, "created": "1"})
-    return RedirectResponse(url=f"/expenses?{query}", status_code=303)
+    params = {"year": expense.spent_on.year, "month": expense.spent_on.month}
+    return RedirectResponse(url=_list_url(params, created=1), status_code=303)
+
+
+@router.post("/{expense_id}")
+def update_expense(
+    request: Request,
+    expense_id: int,
+    description: Annotated[str, Form()] = "",
+    amount: Annotated[str, Form()] = "",
+    currency: Annotated[str, Form()] = "",
+    spent_on: Annotated[str, Form()] = "",
+    category_id: Annotated[str, Form()] = "",
+    payment_method: Annotated[str, Form()] = "",
+    notes: Annotated[str, Form()] = "",
+    db: Session = Depends(get_db),
+):
+    expense = db.get(Expense, expense_id)
+    if expense is None:
+        raise HTTPException(status_code=404)
+
+    form = _read_form(
+        description=description,
+        amount=amount,
+        currency=currency,
+        spent_on=spent_on,
+        category_id=category_id,
+        payment_method=payment_method,
+        notes=notes,
+    )
+
+    error, values = validate_expense(db, form)
+    if values is None:
+        return _render_form(
+            request,
+            db,
+            form=form,
+            error=error,
+            status_code=400,
+            expense=expense,
+            cancel_url=_list_url(_list_params(expense, None, None, None)),
+        )
+
+    values.apply(expense)
+    db.commit()
+
+    params = {"year": expense.spent_on.year, "month": expense.spent_on.month}
+    return RedirectResponse(url=_list_url(params, updated=1), status_code=303)
 
 
 @router.post("/{expense_id}/delete")

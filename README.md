@@ -80,12 +80,15 @@ app/
   routers/
     dashboard.py     GET /
     balance.py       GET /balance (income vs expenses)
-    expenses.py      GET/POST /expenses, POST /expenses/{id}/delete
-    incomes.py       GET/POST /incomes, POST /incomes/{id}/delete
+    expenses.py      GET/POST /expenses, GET /expenses/{id}/edit, POST /expenses/{id}, POST /expenses/{id}/delete
+    incomes.py       GET/POST /incomes, GET /incomes/{id}/edit, POST /incomes/{id}, POST /incomes/{id}/delete
+  entries.py         Form validation and normalisation for expenses and incomes
+  duplicates.py      Duplicate lookups by date, amount and currency
   parsing.py         Shared amount parsing for forms
   templates/         dashboard, balance, expense/income lists and forms
-    partials/        month picker, currency toggle, amount rendering macros
+    partials/        month picker, currency toggle, duplicate modal, amount macros
   static/css/        small style additions
+  static/js/         live money formatting and the duplicate modal
 
 migrations/          Alembic environment + versions
 tests/               Smoke, currency and amount parsing tests
@@ -143,6 +146,13 @@ after they exist, clear the `exchange_rates` table to have them fetched again.
   messages. Code, comments, identifiers, database columns and stored payment-method
   values remain in English. Category names are seeded in Spanish; migration `0002`
   renames the original English defaults.
+- Expenses and incomes can be edited from their lists with the **Editar** link. Cancel
+  returns to the list and filters you came from; saving goes to the month of the saved
+  entry, so a changed date is still visible.
+- When a new expense or income has the same date, amount and currency as one already
+  stored, the form shows a confirmation dialog before saving. Confirming stores the entry
+  anyway; dismissing it keeps the form open. Edited entries are not checked, since the
+  change is explicit.
 - Tailwind is loaded from the CDN for zero build tooling. When you outgrow that, switch to
   the Tailwind CLI and a compiled stylesheet.
 - The app is designed for a single local user. Before exposing it on a network, add
@@ -150,7 +160,7 @@ after they exist, clear the `exchange_rates` table to have them fetched again.
 
 ## Next steps
 
-- [ ] Edit existing expenses and incomes
+- [x] Edit existing expenses and incomes
 - [ ] Manage categories (add/rename/recolor) from the UI
 - [ ] Budgets per category with progress warnings
 - [ ] CSV import/export
