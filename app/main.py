@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import BASE_DIR, settings
 from app.db import SessionLocal
-from app.routers import dashboard, expenses
+from app.routers import balance, dashboard, expenses, incomes
 from app.seed import seed_categories
 from app.templating import templates
 
@@ -43,7 +43,9 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(dashboard.router)
+app.include_router(balance.router)
 app.include_router(expenses.router)
+app.include_router(incomes.router)
 
 
 @app.exception_handler(StarletteHTTPException)

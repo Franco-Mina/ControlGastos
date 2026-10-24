@@ -33,9 +33,11 @@
           </span>
           {{ app_name }}
         </a>
-        <nav class="flex items-center gap-1 text-sm font-medium">
+        <nav class="flex flex-wrap items-center gap-1 text-sm font-medium">
           <a href="/" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path == '/' else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Resumen</a>
+          <a href="/balance" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path.startswith('/balance') else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Balance</a>
           <a href="/expenses" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path.startswith('/expenses') else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Gastos</a>
+          <a href="/incomes" class="rounded-lg px-3 py-2 transition {{ 'bg-slate-100 text-slate-900' if request.url.path.startswith('/incomes') else 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">Ingresos</a>
           <a href="/expenses/new" class="btn btn-primary ml-1">Agregar gasto</a>
         </nav>
       </div>

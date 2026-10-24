@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 
 from app.models import Category, Expense
-from app.routers.expenses import parse_amount
+from app.parsing import parse_amount
 
 
 def test_dashboard_renders(client) -> None:
@@ -14,7 +14,8 @@ def test_dashboard_renders(client) -> None:
 
     assert response.status_code == 200
     assert "Resumen" in response.text
-    assert "Total del mes" in response.text
+    assert "Gastos del mes" in response.text
+    assert "Balance del mes" in response.text
 
 
 def test_expense_list_renders_empty_state(client) -> None:

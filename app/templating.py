@@ -72,7 +72,19 @@ def format_money(value: object) -> str:
         amount = Decimal("0")
 
     symbol = _CURRENCY_SYMBOLS.get(settings.currency.upper(), f"{settings.currency} ")
-    return f"{symbol}{amount:,.2f}"
+    sign = "-" if amount < 0 else ""
+    return f"{sign}{symbol}{abs(amount):,.2f}"
+
+
+def format_money_signed(value: object) -> str:
+    """Like `format_money`, but prefixes positive amounts with a plus sign."""
+    try:
+        amount = Decimal(str(value if value is not None else 0))
+    except (InvalidOperation, ValueError):
+        amount = Decimal("0")
+
+    formatted = format_money(amount)
+    return f"+{formatted}" if amount > 0 else formatted
 
 
 def month_abbr(month: int) -> str:
@@ -102,6 +114,7 @@ def date_dmy(value: date) -> str:
 
 
 templates.env.filters["money"] = format_money
+templates.env.filters["money_signed"] = format_money_signed
 templates.env.filters["month_abbr"] = month_abbr
 templates.env.filters["month_name"] = month_name
 templates.env.filters["payment_label"] = payment_label

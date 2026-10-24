@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.services import (
+    BalanceSummary,
     category_breakdown,
+    income_month_count,
+    income_month_total,
+    income_year_total,
     month_average,
     month_count,
     month_total,
@@ -33,8 +37,10 @@ def dashboard(
     year = year or today.year
     month = month if month and 1 <= month <= 12 else today.month
 
-    total = month_total(db, year, month)
-    count = month_count(db, year, month)
+    month_expenses = month_total(db, year, month)
+    month_income = income_month_total(db, year, month)
+    expenses_count = month_count(db, year, month)
+
     trend = year_month_totals(db, year)
     trend_max = max((value for _, value in trend), default=0)
     prev_year, prev_month = shift_month(year, month, -1)
@@ -47,10 +53,13 @@ def dashboard(
             "year": year,
             "month": month,
             "month_label": month_label(year, month),
-            "month_total": total,
-            "month_count": count,
-            "month_average": month_average(total, count),
-            "year_total": year_total(db, year),
+            "month_summary": BalanceSummary(income=month_income, expenses=month_expenses),
+            "year_summary": BalanceSummary(
+                income=income_year_total(db, year), expenses=year_total(db, year)
+            ),
+            "month_count": expenses_count,
+            "income_count": income_month_count(db, year, month),
+            "month_average": month_average(month_expenses, expenses_count),
             "breakdown": category_breakdown(db, year, month),
             "trend": trend,
             "trend_max": trend_max or 1,

@@ -52,3 +52,20 @@ class Expense(Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debugging helper
         return f"Expense(id={self.id!r}, spent_on={self.spent_on!r}, amount={self.amount!r})"
+
+
+class Income(Base):
+    __tablename__ = "incomes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    received_on: Mapped[date] = mapped_column(Date, index=True)
+    description: Mapped[str] = mapped_column(String(200))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    source: Mapped[str | None] = mapped_column(String(80))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=text("CURRENT_TIMESTAMP")
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging helper
+        return f"Income(id={self.id!r}, received_on={self.received_on!r}, amount={self.amount!r})"

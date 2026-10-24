@@ -1,4 +1,4 @@
-"""Query helpers for totals, trends and breakdowns."""
+"""Query helpers for totals, trends, breakdowns and balances."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
-from app.models import Category, Expense
+from app.models import Category, Expense, Income
 
 
 @dataclass(frozen=True)
@@ -16,6 +16,24 @@ class CategoryTotal:
     color: str
     total: Decimal
     share: float
+
+
+@dataclass(frozen=True)
+class BalanceSummary:
+    income: Decimal
+    expenses: Decimal
+
+    @property
+    def balance(self) -> Decimal:
+        return self.income - self.expenses
+
+
+@dataclass(frozen=True)
+class MonthBalance:
+    month: int
+    income: Decimal
+    expenses: Decimal
+    balance: Decimal
 
 
 def month_bounds(year: int, month: int) -> tuple[date, date]:
@@ -37,33 +55,67 @@ def year_options(selected: int) -> list[int]:
     return list(range(min(selected, current - 4), max(selected, current + 1) + 1))
 
 
-def month_total(db: Session, year: int, month: int) -> Decimal:
-    start, end = month_bounds(year, month)
+def _sum_between(db: Session, amount_column, date_column, start: date, end: date) -> Decimal:
     value = db.scalar(
-        select(func.coalesce(func.sum(Expense.amount), 0)).where(
-            Expense.spent_on >= start, Expense.spent_on < end
+        select(func.coalesce(func.sum(amount_column), 0)).where(
+            date_column >= start, date_column < end
         )
     )
     return Decimal(value or 0)
+
+
+def _count_between(db: Session, date_column, start: date, end: date) -> int:
+    value = db.scalar(select(func.count()).where(date_column >= start, date_column < end))
+    return int(value or 0)
+
+
+def _monthly_totals(
+    db: Session, amount_column, date_column, year: int
+) -> list[tuple[int, Decimal]]:
+    """Total amount for each month of the given year, including empty months."""
+    rows = db.execute(
+        select(
+            extract("month", date_column).label("month"),
+            func.sum(amount_column).label("total"),
+        )
+        .where(date_column >= date(year, 1, 1), date_column < date(year + 1, 1, 1))
+        .group_by("month")
+    ).all()
+
+    totals = {int(row.month): Decimal(row.total) for row in rows}
+    return [(month, totals.get(month, Decimal("0"))) for month in range(1, 13)]
+
+
+def month_total(db: Session, year: int, month: int) -> Decimal:
+    start, end = month_bounds(year, month)
+    return _sum_between(db, Expense.amount, Expense.spent_on, start, end)
 
 
 def year_total(db: Session, year: int) -> Decimal:
-    value = db.scalar(
-        select(func.coalesce(func.sum(Expense.amount), 0)).where(
-            Expense.spent_on >= date(year, 1, 1), Expense.spent_on < date(year + 1, 1, 1)
-        )
+    return _sum_between(
+        db, Expense.amount, Expense.spent_on, date(year, 1, 1), date(year + 1, 1, 1)
     )
-    return Decimal(value or 0)
+
+
+def income_month_total(db: Session, year: int, month: int) -> Decimal:
+    start, end = month_bounds(year, month)
+    return _sum_between(db, Income.amount, Income.received_on, start, end)
+
+
+def income_year_total(db: Session, year: int) -> Decimal:
+    return _sum_between(
+        db, Income.amount, Income.received_on, date(year, 1, 1), date(year + 1, 1, 1)
+    )
 
 
 def month_count(db: Session, year: int, month: int) -> int:
     start, end = month_bounds(year, month)
-    value = db.scalar(
-        select(func.count(Expense.id)).where(
-            Expense.spent_on >= start, Expense.spent_on < end
-        )
-    )
-    return int(value or 0)
+    return _count_between(db, Expense.spent_on, start, end)
+
+
+def income_month_count(db: Session, year: int, month: int) -> int:
+    start, end = month_bounds(year, month)
+    return _count_between(db, Income.received_on, start, end)
 
 
 def category_breakdown(db: Session, year: int, month: int) -> list[CategoryTotal]:
@@ -98,18 +150,39 @@ def category_breakdown(db: Session, year: int, month: int) -> list[CategoryTotal
 
 
 def year_month_totals(db: Session, year: int) -> list[tuple[int, Decimal]]:
-    """Total spending for each month of the given year, including empty months."""
-    rows = db.execute(
-        select(
-            extract("month", Expense.spent_on).label("month"),
-            func.sum(Expense.amount).label("total"),
-        )
-        .where(Expense.spent_on >= date(year, 1, 1), Expense.spent_on < date(year + 1, 1, 1))
-        .group_by("month")
-    ).all()
+    return _monthly_totals(db, Expense.amount, Expense.spent_on, year)
 
-    totals = {int(row.month): Decimal(row.total) for row in rows}
-    return [(month, totals.get(month, Decimal("0"))) for month in range(1, 13)]
+
+def income_year_month_totals(db: Session, year: int) -> list[tuple[int, Decimal]]:
+    return _monthly_totals(db, Income.amount, Income.received_on, year)
+
+
+def month_balance(db: Session, year: int, month: int) -> BalanceSummary:
+    return BalanceSummary(
+        income=income_month_total(db, year, month),
+        expenses=month_total(db, year, month),
+    )
+
+
+def year_balance(db: Session, year: int) -> BalanceSummary:
+    return BalanceSummary(
+        income=income_year_total(db, year),
+        expenses=year_total(db, year),
+    )
+
+
+def monthly_balances(db: Session, year: int) -> list[MonthBalance]:
+    income_totals = dict(income_year_month_totals(db, year))
+    expense_totals = dict(year_month_totals(db, year))
+    return [
+        MonthBalance(
+            month=month,
+            income=income_totals[month],
+            expenses=expense_totals[month],
+            balance=income_totals[month] - expense_totals[month],
+        )
+        for month in range(1, 13)
+    ]
 
 
 def recent_expenses(db: Session, limit: int = 8) -> list[Expense]:

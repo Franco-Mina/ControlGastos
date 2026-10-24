@@ -16,32 +16,42 @@
   </div>
 </div>
 
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
   <div class="card p-5">
-    <p class="text-sm font-medium text-slate-500">Total del mes</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ month_total|money }}</p>
-    <p class="mt-1 text-xs text-slate-500">{{ month_label }}</p>
+    <p class="text-sm font-medium text-slate-500">Gastos del mes</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ month_summary.expenses|money }}</p>
+    <p class="mt-1 text-xs text-slate-500">{{ month_count }} {{ 'registro' if month_count == 1 else 'registros' }} · promedio {{ month_average|money }}</p>
   </div>
   <div class="card p-5">
-    <p class="text-sm font-medium text-slate-500">Total del año</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ year_total|money }}</p>
+    <p class="text-sm font-medium text-slate-500">Ingresos del mes</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ month_summary.income|money }}</p>
+    <p class="mt-1 text-xs text-slate-500">{{ income_count }} {{ 'registro' if income_count == 1 else 'registros' }} en {{ month_label }}</p>
+  </div>
+  <div class="card p-5 {{ 'border-emerald-200 bg-emerald-50' if month_summary.balance >= 0 else 'border-rose-200 bg-rose-50' }}">
+    <p class="text-sm font-medium text-slate-500">Balance del mes</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-emerald-700' if month_summary.balance >= 0 else 'text-rose-700' }}">{{ month_summary.balance|money_signed }}</p>
+    <a href="/balance?year={{ year }}&month={{ month }}" class="mt-1 inline-block text-xs text-indigo-600 hover:underline">Ver balance →</a>
+  </div>
+  <div class="card p-5">
+    <p class="text-sm font-medium text-slate-500">Gastos del año</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ year_summary.expenses|money }}</p>
     <a href="/expenses?year={{ year }}&month=0" class="mt-1 inline-block text-xs text-indigo-600 hover:underline">Ver {{ year }} →</a>
   </div>
   <div class="card p-5">
-    <p class="text-sm font-medium text-slate-500">Gastos registrados</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ month_count }}</p>
-    <p class="mt-1 text-xs text-slate-500">en {{ month_label }}</p>
+    <p class="text-sm font-medium text-slate-500">Ingresos del año</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ year_summary.income|money }}</p>
+    <a href="/incomes?year={{ year }}&month=0" class="mt-1 inline-block text-xs text-indigo-600 hover:underline">Ver {{ year }} →</a>
   </div>
-  <div class="card p-5">
-    <p class="text-sm font-medium text-slate-500">Gasto promedio</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{{ month_average|money }}</p>
-    <p class="mt-1 text-xs text-slate-500">por registro este mes</p>
+  <div class="card p-5 {{ 'border-emerald-200 bg-emerald-50' if year_summary.balance >= 0 else 'border-rose-200 bg-rose-50' }}">
+    <p class="text-sm font-medium text-slate-500">Balance del año</p>
+    <p class="mt-2 text-2xl font-semibold tabular-nums {{ 'text-emerald-700' if year_summary.balance >= 0 else 'text-rose-700' }}">{{ year_summary.balance|money_signed }}</p>
+    <a href="/balance?year={{ year }}&month={{ month }}" class="mt-1 inline-block text-xs text-indigo-600 hover:underline">Ver detalle →</a>
   </div>
 </div>
 
 <section class="card mt-6 p-5">
   <div class="flex items-center justify-between">
-    <h2 class="font-semibold text-slate-900">Tendencia mensual · {{ year }}</h2>
+    <h2 class="font-semibold text-slate-900">Gastos por mes · {{ year }}</h2>
     <a href="/expenses?year={{ year }}&month=0" class="text-sm text-indigo-600 hover:underline">Ver el año</a>
   </div>
   <div class="mt-6 flex h-40 items-end gap-2">
@@ -59,7 +69,7 @@
 
 <div class="mt-6 grid gap-6 lg:grid-cols-5">
   <section class="card p-5 lg:col-span-2">
-    <h2 class="font-semibold text-slate-900">Por categoría</h2>
+    <h2 class="font-semibold text-slate-900">Gastos por categoría</h2>
     {% if breakdown %}
       <div class="mt-4 space-y-4">
         {% for item in breakdown %}

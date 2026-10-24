@@ -69,8 +69,11 @@ app/
   seed.py            Default category seeding
   routers/
     dashboard.py     GET /
+    balance.py       GET /balance (income vs expenses)
     expenses.py      GET/POST /expenses, POST /expenses/{id}/delete
-  templates/         base.html, dashboard, expense list + form
+    incomes.py       GET/POST /incomes, POST /incomes/{id}/delete
+  parsing.py         Shared amount parsing for forms
+  templates/         dashboard, balance, expense/income lists and forms
   static/css/        small style additions
 
 migrations/          Alembic environment + versions
@@ -83,9 +86,11 @@ data/                SQLite database (gitignored)
 - **Category** — name (unique) and a display color.
 - **Expense** — date, description, amount (`NUMERIC(12, 2)`), optional category, payment
   method and notes.
+- **Income** — date, description, amount, optional source and notes.
 
 Amounts are stored as decimals, never floats. The display currency is set with `CURRENCY`
-in `.env` (`USD` by default).
+in `.env` (`USD` by default). The balance view computes `income - expenses` for the
+selected month and for every month of the year.
 
 ## Notes
 
@@ -100,9 +105,9 @@ in `.env` (`USD` by default).
 
 ## Next steps
 
-- [ ] Edit existing expenses
+- [ ] Edit existing expenses and incomes
 - [ ] Manage categories (add/rename/recolor) from the UI
 - [ ] Budgets per category with progress warnings
 - [ ] CSV import/export
-- [ ] Recurring expenses
+- [ ] Recurring expenses and incomes
 - [ ] Charts (e.g. Chart.js) for category and month comparisons
